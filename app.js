@@ -16,13 +16,13 @@
  */
 
 /**
- * @fileoverview Experiment with smoky paths.
+ * @fileoverview Experiment with particle paths.
  * 
  * @author Luis Mejia <lmejia@gmail.com>
  * 
  * @requires EXTERNAL:@link{https://p5js.org p5.js}
  * @requires p5-ext.js
- * @requires smokey.js
+ * @requires particle-shape.js
  */
 'use strict';
 
@@ -33,34 +33,35 @@ class App {
 
     onSetup() {
         this.figure = new Figure();
-        this.figure.originPosition = createVector(width / 2, height * 3 / 4);
+        this.figure.originPosition = createVector(width / 2, height * 2 / 3);
         this.figure.originHeading = PI / -2;
+        let xoff = random(2000000);
         for (let i = 0; i < 200; ++i) {
-            this.figure.addSegment(new PathSegment(0, 2));
+            xoff += 0.01;
+            const angle = (noise(xoff) - 0.5) * QUARTER_PI / 2;
+            this.figure.addSegment(new PathSegment(angle, 3));
         }
-        this.smokes = [];
+        this.paths = [];
         for (let i = 0; i < 10; ++i) {
-            const smoke = new Smoke(this.figure);
-            this.smokes.push(smoke);
+            const path = new ParticlePath(this.figure);
+            this.paths.push(path);
         }
     }
 
     onUpdate() {
-        this.smokes.forEach(smoke => {
-            if (floor(random(10)) == 0) {
-                smoke.spawnParticle();
-            }
-            smoke.update();
-        });
+        for (let i = 0; i < 10; ++i) {
+            random(this.paths).spawnParticle();
+        }
+        this.paths.forEach(path => path.update());
     }
 
     onDraw() {
         background(0);
-        noFill();
-        strokeWeight(2);
-        stroke('#f0f0f0ff');
-        this.figure.draw();
+        // noFill();
+        // strokeWeight(2);
+        // stroke('#f0f0f0ff');
+        // this.figure.draw();
         stroke('#f0f0f080');
-        this.smokes.forEach(smoke => smoke.draw());
+        this.paths.forEach(path => path.draw());
     }
 }

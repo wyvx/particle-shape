@@ -16,7 +16,7 @@
  */
 
  /**
-  * @fileoverview Classes for shapes and smoke paths.
+  * @fileoverview Classes for shapes and particle paths.
   * 
   * @author Luis Mejia <lmejia@gmail.com>
   */
@@ -72,24 +72,28 @@ class Figure extends Path {
     }
 }
 
-class Smoke extends Figure {
+class ParticlePath extends Path {
 
     constructor(figure, branchIndex = null, minLength = 50, maxLength = 100) {
         super();
         if (branchIndex == null) {
             branchIndex = floor(random(figure.segments.length));
         }
-        const location = this.walkToSegment(figure, branchIndex);
-        this.originPosition = location.offset;
-        this.originHeading = location.heading;
+        const pathPrefix = this.getPathPrefix(figure, branchIndex);
+        pathPrefix.forEach(segment => this.addSegment(segment));
+        this.originPosition = figure.originPosition;
+        this.originHeading = figure.originHeading;
         const length = floor(random(minLength, maxLength));
         this.createSmokePath(length);
-        this.prepareParticles();
+        this.pathLength = 0;
+        this.segments.forEach(segment => this.pathLength += segment.distance);
+        this.particles = [];
     }
 
-    walkToSegment(figure, branchIndex) {
+    getPathPrefix(figure, branchIndex) {
         const position = figure.originPosition.copy();
         let heading = figure.originHeading;
+        const pathPrefix = [];
         for (let i = 0; i < figure.segments.length; ++i) {
             if (i >= branchIndex) {
                 break;
@@ -98,11 +102,9 @@ class Smoke extends Figure {
             heading += segment.angle;
             const vector = p5.Vector.fromAngle(heading, segment.distance);
             position.add(vector);
+            pathPrefix.push(segment.copy());
         }
-        return {
-            offset: position,
-            heading: heading
-        };
+        return pathPrefix;
     }
 
     createSmokePath(length) {
@@ -115,23 +117,19 @@ class Smoke extends Figure {
         }
     }
 
-    prepareParticles() {
-        this.particles = [];
-        for (let i = 0; i < 2; ++i) {
-            this.spawnParticle();
-        }
-    }
-
     spawnParticle() {
-        const length = this.particles.length * 2;
-        const distanceOffset = random(length);
-        this.particles.push(new SmokeParticle(distanceOffset));
+        const distanceOffset = random(this.pathLength - 100);
+        this.particles.push(new Particle(distanceOffset));
 }
 
     update() {
         const time = millis();
+        const _pathLength = this.pathLength;
         this.particles = this.particles.filter(p => {
             p.update(time);
+            if (p.distance >= (_pathLength - p.alphaSpeed)) {
+                p.fadeOut();
+            }
             return p.isAlive;
         });
         this.particles.sort((a, b) => a.distance - b.distance);
@@ -166,17 +164,9 @@ class Smoke extends Figure {
             position.add(vector);
             remainingDistance -= vector.mag();
         }
-        for (let i = particleIndex; i < this.particles.length; ++i) {
-            const particle = this.particles[i];
-            particle.position = position;
-            if (particle.alphaDirection != -1) {
-                particle.fadeOut();
-            }
-        }
     }
 
     draw() {
-        // super.draw();
         push();
         noStroke();
         const particleColor = color('#ffff00ff');
@@ -189,7 +179,7 @@ class Smoke extends Figure {
     }
 }
 
-class SmokeParticle {
+class Particle {
 
     constructor(distanceOffset = 0, xoffOrigin = null) {
         this.xoffOrigin = xoffOrigin == null ? random(2000000) : xoffOrigin;
@@ -200,9 +190,10 @@ class SmokeParticle {
         this.position = createVector(0, 0);
         this.xoffAngleStart = random(2000000);
         this.xoffAngle = 0;
-        this.gap = random(20);
+        this.gap = random(5);
         this.alpha = 255;
         this.alphaDirection = 0;
+        this.alphaSpeed = 300;
         this.isAlive = true;
         this.fadeIn();
     }
@@ -211,21 +202,22 @@ class SmokeParticle {
         const elapsed = (time - this.creationTime) / 1000;
         const delta = (time - this.lastTime) / 1000;
         this.lastTime = time;
-        this.distance = this.speed * elapsed;
+        // this.distance = this.speed * elapsed;
+        this.distance += this.speed * delta;
         this.xoffAngle = this.xoffAngleStart + (elapsed * 2);
         if (delta == 0) {
             return;
         }
         switch (this.alphaDirection) {
             case 1:
-                this.alpha += 300 * delta;
+                this.alpha += this.alphaSpeed * delta;
                 if (this.alpha >= 255) {
                     this.alpha = 255;
                     this.alphaDirection = 0;
                 }
                 break;
             case -1:
-                this.alpha -= 300 * delta;
+                this.alpha -= this.alphaSpeed * delta;
                 if (this.alpha <= 0) {
                     this.alpha = 0;
                     this.alphaDirection = 0;
@@ -238,17 +230,23 @@ class SmokeParticle {
     }
 
     draw() {
-        const vector = p5.Vector.fromAngle(noise(this.xoffAngle) * TWO_PI, this.gap);
+        const vector = p5.Vector.fromAngle(noise((this.xoffAngle) - 0.5) * PI, this.gap);
         vector.add(this.position);
-        ellipse(vector.x, vector.y, 3);
+        ellipse(vector.x, vector.y, 2);
     }
 
     fadeIn() {
+        if (this.alphaDirection == 1) {
+            return;
+        }
         this.alpha = 0;
         this.alphaDirection = 1;
     }
 
     fadeOut() {
+        if (this.alphaDirection == -1) {
+            return;
+        }
         this.alpha = 255;
         this.alphaDirection = -1;
     }
