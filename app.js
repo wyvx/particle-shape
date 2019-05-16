@@ -61,7 +61,6 @@ class App {
         // strokeWeight(2);
         // stroke('#f0f0f0ff');
         // this.figure.draw();
-        stroke('#f0f0f080');
         this.paths.forEach(path => path.draw());
     }
 }
