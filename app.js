@@ -49,7 +49,7 @@ class App {
     }
 
     onUpdate() {
-        for (let i = 0; i < 10; ++i) {
+        for (let i = 0; i < 30; ++i) {
             random(this.paths).spawnParticle();
         }
         this.paths.forEach(path => path.update());
